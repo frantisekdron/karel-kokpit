@@ -417,7 +417,8 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    var pid=card.getAttribute('data-pid'),r=rec(pid);
    if(r.order===null||r.order===undefined)r.order=parseInt(card.getAttribute('data-order'),10);
    paintCard(card);
-   card.querySelector('.stage-sel').addEventListener('change',function(){r.stage=this.value;r.ts=Date.now();save();paintCard(card);refresh();});
+   card.querySelector('.stage-sel').addEventListener('change',function(){r.stage=this.value;r.ts=Date.now();save();paintCard(card);refresh();
+     udalost('stav',card.querySelector('.nm').textContent+' -> '+(this.options[this.selectedIndex]||{}).text);});
    card.querySelector('.del').addEventListener('click',function(e){e.stopPropagation();r.hidden=!r.hidden;save();refresh();});
    card.querySelectorAll('.mv').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();move(card,parseInt(btn.getAttribute('data-dir'),10));});});
    ['.thumbwrap','.nm','.noteprev'].forEach(function(sel){var el=card.querySelector(sel);if(el)el.addEventListener('click',function(){openDetail(card);});});
@@ -584,6 +585,8 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
        var q=(state.__dopisy||[]).find(function(x){return x.pid===pid;});
        if(q)q.adresa=ai.value.trim();
        save();prekont();renderDopisy();
+       clearTimeout(window._at);window._at=setTimeout(function(){
+         if(ai.value.trim())udalost('adresa',card.querySelector('.nm').textContent+': '+ai.value.trim());},4000);
        if(typeof ab!=='undefined')ab.textContent=(state.__dopisy||[]).some(function(x){return x.pid===pid;})
          ?'✓ Ve frontě dopisů — odebrat'
          :(efektAdr()?'📮 Zařadit do fronty dopisů':'📮 Zařadit do fronty (adresu doplním později)');});
@@ -599,7 +602,9 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
        if(i>=0){state.__dopisy.splice(i,1);}
        else{state.__dopisy.push({pid:pid,name:card.querySelector('.nm').textContent,
               prijemce:dopis.prijemce||'Vážený majiteli nemovitosti',adresa:efektAdr(),ts:Date.now()});}
-       save();renderDopisy();openDetail(card);});
+       save();renderDopisy();
+       udalost('dopis',(i>=0?'odebrano z fronty: ':'zarazeno do fronty: ')+card.querySelector('.nm').textContent);
+       openDetail(card);});
      ds.appendChild(ab);
 
      L.appendChild(ds);
@@ -623,7 +628,10 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    R.appendChild(sel);
    var s2=document.createElement('div');s2.className='dsec';s2.textContent='Poznámka';R.appendChild(s2);
    var ta=document.createElement('textarea');ta.className='dnote';ta.value=r.note||'';ta.placeholder='Komu/kdy odesláno, co odpověděli, další krok…';
-   ta.addEventListener('input',function(){r.note=ta.value;r.ts=Date.now();save();paintCard(card);ts.textContent=fmtTs(r.ts);});
+   var _pt=null;
+   ta.addEventListener('input',function(){r.note=ta.value;r.ts=Date.now();save();paintCard(card);ts.textContent=fmtTs(r.ts);
+     clearTimeout(_pt);_pt=setTimeout(function(){
+       udalost('pozn',card.querySelector('.nm').textContent+': '+ta.value.slice(0,90));},4000);});
    R.appendChild(ta);
    // přílohy
    var s3=document.createElement('div');s3.className='dsec';s3.textContent='Přílohy (obrázky, screenshoty, soubory)';R.appendChild(s3);
@@ -642,7 +650,9 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
        ax.addEventListener('click',function(){delFile(f.id,function(){renderAtt();updAttCount(pid);});});
        it.appendChild(ax);ag.appendChild(it);});
      updAttCount(pid);});}
-   fi.addEventListener('change',function(){if(fi.files.length)addFiles(pid,fi.files,function(){fi.value='';renderAtt();});});
+   fi.addEventListener('change',function(){if(fi.files.length){var _c=fi.files.length;
+     addFiles(pid,fi.files,function(){fi.value='';renderAtt();
+       udalost('priloha',_c+'x k: '+card.querySelector('.nm').textContent);});}});
    lab.addEventListener('dragover',function(e){e.preventDefault();});
    lab.addEventListener('drop',function(e){e.preventDefault();if(e.dataTransfer.files.length)addFiles(pid,e.dataTransfer.files,renderAtt);});
    renderAtt();
@@ -724,16 +734,17 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    var url=document.getElementById('a_url').value.trim();if(!url)return;
    state.__requests.push({id:'r'+Date.now()+Math.round(Math.random()*999),mode:'link',url:url,
      prio:document.getElementById('a_prio').value,note:document.getElementById('a_note').value.trim(),ts:Date.now()});
-   save();this.reset();renderReqs();});
+   save();this.reset();renderReqs();udalost('naber','odkaz: '+url);});
  document.getElementById('reqformB').addEventListener('submit',function(e){e.preventDefault();
    state.__requests.push({id:'r'+Date.now()+Math.round(Math.random()*999),mode:'param',
      typ:selVal('b_typ'),disp:selVal('b_disp'),kraj:document.getElementById('b_kraj').value,
      obec:document.getElementById('b_obec').value.trim(),cena:document.getElementById('b_cena').value,
      zdroj:selVal('b_zdroj'),prio:document.getElementById('b_prio').value,
      note:document.getElementById('b_note').value.trim(),ts:Date.now()});
+   var _q=state.__requests[state.__requests.length-1];
    save();this.reset();
    ['b_typ_j','b_disp_j','b_zdroj_j'].forEach(function(id){document.getElementById(id).hidden=true;});
-   renderReqs();});
+   renderReqs();udalost('naber','parametry: '+[_q.typ,_q.disp,_q.kraj,_q.obec,_q.cena].filter(Boolean).join(' / '));});
  function reqText(){var rs=state.__requests||[];
    return 'Karlův seznam náběrů ('+new Date().toLocaleDateString('cs-CZ')+'):\n\n'+rs.map(function(q,i){return reqLine(q,i+1);}).join('\n');}
  document.getElementById('reqsend').addEventListener('click',function(){
@@ -749,7 +760,8 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    cp.addEventListener('click',function(){function ok(){cp.textContent='Zkopírováno ✓';setTimeout(function(){cp.textContent='📋 Zkopírovat celý seznam';},1600);}
      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(reqText()).then(ok,ok);}else{ok();}});
    mbdy.appendChild(cp);
-   document.getElementById('mailmodal').classList.add('open');});
+   document.getElementById('mailmodal').classList.add('open');
+   udalost('seznam',(state.__requests||[]).length+' polozek k find & contact');});
  document.getElementById('reqcopy').addEventListener('click',function(){
    var b=this,t=reqText();function ok(){b.textContent='Zkopírováno ✓';setTimeout(function(){b.textContent='📋 Kopírovat seznam';},1600);}
    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,ok);}else{ok();}});
@@ -844,7 +856,8 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    var ml=document.createElement('a');ml.className='dbtn';ml.style.marginLeft='8px';
    ml.href='mailto:frantisekdron@gmail.com?subject='+encodeURIComponent('Fronta dopisů')+'&body='+encodeURIComponent(dopText());
    ml.textContent='✉ Otevřít e-mail';mbdy.appendChild(ml);
-   document.getElementById('mailmodal').classList.add('open');}
+   document.getElementById('mailmodal').classList.add('open');
+   udalost('dopis','ODESLANA FRONTA: '+(state.__dopisy||[]).length+' dopisu');}
  var _dsend=document.getElementById('dopsend');
  if(_dsend)_dsend.addEventListener('click',function(){
    if(!(state.__dopisy||[]).length){alert('Fronta dopisů je prázdná, Karle 🙂');return;}dopModal();});
@@ -857,6 +870,56 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    e.addEventListener('click',function(){var on=e.getAttribute('data-on')!=='1';
      e.setAttribute('data-on',on?'1':'0');e.classList.toggle('active',on);
      if(id==='f_mail')fMail=on;else fAdr=on;refresh();});});
+
+ // ——— UPOZORNĚNÍ NA ZMĚNY (souhrn na ntfy) ———
+ // Kokpit je statická stránka: sám v 10:00 nic neodešle, když ho nikdo nemá otevřený.
+ // Proto se změny ukládají do „outboxu" a souhrn odejde při nejbližší příležitosti
+ // po 10:00 / 15:00, kdy je stránka otevřená. Outbox se maže až po úspěšném odeslání.
+ var NTFY='https://ntfy.sh/fdboard-1698757f87bc', DIGEST_H=[10, 15], KDO='Karel Dufek';
+ function udalost(druh,txt){
+   if(!NTFY)return;
+   state.__udalosti=state.__udalosti||[];
+   state.__udalosti.push({t:Date.now(),d:druh,x:String(txt).slice(0,160)});
+   if(state.__udalosti.length>300)state.__udalosti.shift();
+   save(); zkusOdeslat();
+ }
+ function oknoId(ts){                      // které souhrnné okno už uplynulo
+   var d=new Date(ts), den=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(), h=d.getHours(), po=null;
+   DIGEST_H.forEach(function(x){ if(h>=x) po=x; });
+   return po===null?null:den+'@'+po;
+ }
+ function sklon(n){ return n===1?'změna':(n>=2&&n<=4?'změny':'změn'); }
+ function textSouhrnu(ud){
+   var NAZ={stav:'Změna stavu',pozn:'Poznámka',naber:'Nový požadavek na náběr',
+            seznam:'Odeslán seznam náběrů',dopis:'Fronta dopisů',adresa:'Doplněna adresa',
+            priloha:'Příloha',skryto:'Skrytí nemovitosti',fotopozn:'Poznámka k fotkám'};
+   var po={}; ud.forEach(function(u){ (po[u.d]=po[u.d]||[]).push(u); });
+   var r=[KDO+' — '+ud.length+' '+sklon(ud.length)+' v kokpitu:',''];
+   Object.keys(po).forEach(function(k){
+     r.push('* '+(NAZ[k]||k)+' ('+po[k].length+'x):');
+     po[k].slice(-6).forEach(function(u){
+       var d=new Date(u.t), hh=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+       r.push('   '+hh+'  '+u.x);
+     });
+     if(po[k].length>6)r.push('   ... a dalsich '+(po[k].length-6));
+     r.push('');
+   });
+   return r.join('\n');
+ }
+ function zkusOdeslat(){
+   if(!NTFY)return;
+   var ud=state.__udalosti||[]; if(!ud.length)return;
+   var ok=oknoId(Date.now()); if(!ok)return;             // před prvním oknem dne se nečeká
+   if(state.__ntfyOkno===ok)return;                       // tohle okno už odesláno
+   var telo=textSouhrnu(ud);
+   fetch(NTFY,{method:'POST',body:telo,headers:{
+     'Title':'KOKPIT '+KDO+' — '+ud.length+' '+sklon(ud.length),'Tags':'house','Priority':'default'}})
+   .then(function(r){ if(!r.ok)throw 0;
+     state.__ntfyOkno=ok; state.__udalosti=[]; save(); })
+   .catch(function(){ /* nevadí — zkusí se příště, outbox zůstává */ });
+ }
+ setInterval(zkusOdeslat, 5*60*1000);
+ zkusOdeslat();
  refresh();renderReqs();
 })();
 </script></body></html>
