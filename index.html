@@ -70,6 +70,10 @@ body{background:#f2ede4;color:#26221c;padding:18px 14px 90px} .wrap{max-width:12
 .mailv .vh b{font-size:12px;color:#918361} .mailv .vh .subj{font-size:10.5px;color:#6a7686;flex:1;margin:0 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .copybtn{font-size:10.5px;font-weight:700;border:1px solid #c6d2e0;background:#fff;border-radius:7px;padding:4px 10px;cursor:pointer;color:#211c15;white-space:nowrap}
 .copybtn.done{background:#2e8b57;color:#fff;border-color:#2e8b57}
+.copybtn.gmail{background:#d93025;border-color:#d93025;color:#fff;text-decoration:none}
+a.copybtn{text-decoration:none;display:inline-flex;align-items:center}
+.mailto-line{font-size:11px;color:#46566b;background:#f7f9fc;border-bottom:1px solid #e6ebf1;padding:5px 12px}
+body.dark .mailto-line{background:#1b2c45;color:#c3d1e3;border-color:#3a3227}
 .mailv pre{margin:0;padding:11px 13px;font-family:inherit;font-size:11.5px;color:#2a3a4d;white-space:pre-wrap;line-height:1.5}
 
 
@@ -484,8 +488,20 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
      hh.appendChild(b);hh.appendChild(s);
      hh.appendChild(mkcp('Předmět',function(){return v.predmet;}));
      hh.appendChild(mkcp('Text',function(){return v.text;}));
+     var to=v.to||m.to||'';
+     if(to){
+       hh.appendChild(mkcp('Adresa',function(){return to;}));
+       var g=document.createElement('a');g.className='copybtn gmail';g.target='_blank';g.rel='noopener';
+       g.href='https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(v.predmet)+'&body='+encodeURIComponent(v.text);
+       g.textContent='✉ Gmail';hh.appendChild(g);
+       var ml=document.createElement('a');ml.className='copybtn';
+       ml.href='mailto:'+to+'?subject='+encodeURIComponent(v.predmet)+'&body='+encodeURIComponent(v.text);
+       ml.textContent='✉ Mail';hh.appendChild(ml);
+     }
      var pre=document.createElement('pre');pre.textContent=v.text;
-     w.appendChild(hh);w.appendChild(pre);body.appendChild(w);});
+     w.appendChild(hh);
+     if(to){var tl=document.createElement('div');tl.className='mailto-line';tl.textContent='Komu: '+to;w.appendChild(tl);}
+     w.appendChild(pre);body.appendChild(w);});
    document.getElementById('mailmodal').classList.add('open');}
  document.querySelectorAll('.ab.mail').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();openMail(parseInt(btn.getAttribute('data-midx'),10));});});
 
