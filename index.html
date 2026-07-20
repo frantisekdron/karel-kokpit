@@ -93,6 +93,12 @@ body.dark .dopcard{background:#221d16;border-color:#3a3227}
 .dopcard .da{font-size:12px;color:#6a7686}
 .dopcard .ddel{position:absolute;top:8px;right:9px;border:0;background:#f0f4f8;border-radius:7px;cursor:pointer;padding:2px 7px;font-size:13px}
 .dopempty{padding:26px;text-align:center;color:#8a97a8;font-size:13px}
+.katmapa{margin:9px 0 4px;border:1px solid #e2e8f1;border-radius:10px;overflow:hidden;background:#fff}
+.katmapa img{width:100%;display:block;cursor:zoom-in}
+.katcap{font-size:10.5px;color:#6a7686;padding:6px 9px;background:#f7f9fc}
+.katok{display:flex;gap:8px;align-items:center;font-size:12px;color:#211c15;background:#eef7f0;border:1px solid #cfe0d3;border-radius:9px;padding:8px 10px;margin-top:7px;cursor:pointer}
+body.dark .katmapa{background:#221d16;border-color:#2e4260}body.dark .katcap{background:#1b2c45;color:#9fb2c8}
+body.dark .katok{background:#14301f;border-color:#2c5c3a;color:#cfe8d6}
 .dopisb{margin:5px 0 0;font-size:10.5px;font-weight:800;border-radius:7px;padding:3px 8px;display:inline-block}
 .dst-a{background:#efe9dd;color:#7a6a45}.dst-p{background:#fff7ec;color:#8a6d1f}
 .dst-o{background:#e8f5ee;color:#2e8b57}.dst-e{background:#fdecee;color:#6f6249}
@@ -544,7 +550,7 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    try{dopis=JSON.parse(card.getAttribute('data-dopis')||'{}');}catch(e){}
    try{katastr=JSON.parse(card.getAttribute('data-katastr')||'{}');}catch(e){}
    // dopis má smysl jen tam, kde nemáme e-mail (data-hasmail=0)
-   if(card.getAttribute('data-hasmail')!=='1'){
+   if(card.getAttribute('data-hasmail')!=='1' || dopis.adresa){
      var ds=document.createElement('div');ds.className='dopissec';
      var dh=document.createElement('div');dh.className='dsec';dh.textContent='📮 Oslovení dopisem';ds.appendChild(dh);
      var STAVY={'adresa-znama':'Adresa známa — dopis lze připravit','pripraven':'Dopis připraven k odeslání',
@@ -559,6 +565,29 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
      if(dopis.cena)radek('Poštovné',dopis.cena);
      if(katastr.parcely&&katastr.parcely.length)
        radek('Parcely',katastr.parcely.map(function(x){return x.ref;}).slice(0,4).join(', '));
+     if(katastr.verdikt){
+       var JV={'OK':['✅ katastr souhlasí','#2e8b57'],'CASTECNE':['⚠️ částečná shoda','#b8860b'],
+               'NESEDI':['⛔ katastr NESOUHLASÍ','#6f6249'],'NEOVERENO':['❔ nelze ověřit','#6a7686']};
+       var jv=JV[katastr.verdikt]||JV['NEOVERENO'];
+       var vr=document.createElement('div');vr.className='dopisrow';
+       vr.innerHTML='<b>Ověření</b><span style="color:'+jv[1]+';font-weight:700">'+jv[0]+'</span>';ds.appendChild(vr);
+     }
+     if(katastr.poznamka){var pz=document.createElement('div');pz.className='dnote-k';
+       pz.textContent='🛈 '+katastr.poznamka;ds.appendChild(pz);}
+     if(katastr.mapa_url){
+       var mw=document.createElement('div');mw.className='katmapa';
+       var mi=document.createElement('img');mi.src=katastr.mapa_url;mi.loading='lazy';mi.alt='katastrální mapa';
+       mi.addEventListener('click',function(){lbOpen(katastr.mapa_url);});
+       var mc=document.createElement('div');mc.className='katcap';
+       mc.textContent='Katastrální mapa — kříž = GPS z inzerátu. Klikni pro zvětšení a ověř, že sedí budova i pozemek.';
+       mw.appendChild(mi);mw.appendChild(mc);ds.appendChild(mw);
+       var ok=document.createElement('label');ok.className='katok';
+       var cb=document.createElement('input');cb.type='checkbox';
+       state.__adrok=state.__adrok||{};cb.checked=!!state.__adrok[pid];
+       cb.addEventListener('change',function(){state.__adrok[pid]=cb.checked;save();});
+       ok.appendChild(cb);ok.appendChild(document.createTextNode(' Adresu jsem ověřil/a na mapě — lze poslat dopis'));
+       ds.appendChild(ok);
+     }
      if(katastr.jistota==='adresa-neuplna'){
        var w=document.createElement('div');w.className='dnote-k';
        w.textContent='⚠️ '+(katastr.poznamka||'Adresa není doručitelná — dohledej přesnou adresu.');ds.appendChild(w);}
@@ -691,7 +720,8 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
        var info=document.createElement('div');info.className='dnote-k';info.textContent='Zkopíruj poznámky tlačítkem níže a pošli je na frantisekdron@gmail.com (předmět: Poznámky k fotkám — '+pname+').';mbdy.appendChild(info);
        var pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:#f3f6fa;border-radius:9px;padding:12px;margin:10px 0;line-height:1.5';pre.textContent=txt;mbdy.appendChild(pre);
        var cp=document.createElement('button');cp.className='dbtn mail';cp.textContent='📋 Zkopírovat poznámky';cp.addEventListener('click',function(){function ok(){cp.textContent='Zkopírováno ✓';setTimeout(function(){cp.textContent='📋 Zkopírovat poznámky';},1600);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(ok,ok);}else{ok();}});mbdy.appendChild(cp);
-       var ml=document.createElement('a');ml.className='dbtn';ml.style.marginLeft='8px';ml.href='mailto:frantisekdron@gmail.com?subject='+encodeURIComponent('Poznámky k fotkám — '+pname)+'&body='+encodeURIComponent(txt);ml.textContent='✉ Otevřít e-mail';mbdy.appendChild(ml);
+       var ml=document.createElement('a');ml.className='dbtn';ml.style.marginLeft='8px';ml.href=mailtoUrl('Poznámky k fotkám — '+pname, txt);ml.textContent='✉ Otevřít e-mail znovu';mbdy.appendChild(ml);
+       otevriMail('Poznámky k fotkám — '+pname, txt);
        document.getElementById('mailmodal').classList.add('open');});
      sw.appendChild(sb);cs.appendChild(sw);
      body.appendChild(cs);
@@ -749,10 +779,11 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    return 'Karlův seznam náběrů ('+new Date().toLocaleDateString('cs-CZ')+'):\n\n'+rs.map(function(q,i){return reqLine(q,i+1);}).join('\n');}
  document.getElementById('reqsend').addEventListener('click',function(){
    if(!(state.__requests||[]).length){alert('Seznam je prázdný, Karle 🙂');return;}
+   otevriMail('Nový seznam náběrů — Karel Dufek', reqText());
    var mt=document.getElementById('mailtitle'),mbdy=document.getElementById('mailbody');
    mt.textContent='📤 Odeslat seznam Františkovi';mbdy.innerHTML='';
    var info=document.createElement('div');info.className='dnote-k';
-   info.textContent='Karle, zkopíruj seznam tlačítkem níže a pošli ho e-mailem na frantisekdron@gmail.com (předmět: Nový seznam náběrů). František pak spustí find & contact.';
+   info.textContent='Karle, otevřel se ti e-mail s hotovým seznamem — stačí odeslat. Kdyby se neotevřel (nebo používáš webový Gmail), zkopíruj text tlačítkem níže a pošli ho na frantisekdron@gmail.com.';
    mbdy.appendChild(info);
    var pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:#f3f6fa;border-radius:9px;padding:12px;margin:10px 0;line-height:1.5';
    pre.textContent=reqText();mbdy.appendChild(pre);
@@ -760,6 +791,9 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    cp.addEventListener('click',function(){function ok(){cp.textContent='Zkopírováno ✓';setTimeout(function(){cp.textContent='📋 Zkopírovat celý seznam';},1600);}
      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(reqText()).then(ok,ok);}else{ok();}});
    mbdy.appendChild(cp);
+   var mlr=document.createElement('a');mlr.className='dbtn';mlr.style.marginLeft='8px';
+   mlr.href=mailtoUrl('Nový seznam náběrů — Karel Dufek', reqText());mlr.textContent='✉ Otevřít e-mail znovu';
+   mbdy.appendChild(mlr);
    document.getElementById('mailmodal').classList.add('open');
    udalost('seznam',(state.__requests||[]).length+' polozek k find & contact');});
  document.getElementById('reqcopy').addEventListener('click',function(){
@@ -845,7 +879,7 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
    var mt=document.getElementById('mailtitle'),mbdy=document.getElementById('mailbody');
    mt.textContent='📤 Odeslat frontu dopisů Františkovi';mbdy.innerHTML='';
    var info=document.createElement('div');info.className='dnote-k';
-   info.textContent='Zkopíruj seznam níže a pošli ho na frantisekdron@gmail.com (předmět: Fronta dopisů). František dopisy podá na poště.';
+   info.textContent='Otevřel se ti e-mail s hotovou frontou — stačí odeslat. Kdyby se neotevřel (nebo používáš webový Gmail), zkopíruj text tlačítkem níže a pošli ho na frantisekdron@gmail.com.';
    mbdy.appendChild(info);
    var pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:#f3f6fa;border-radius:9px;padding:12px;margin:10px 0;line-height:1.5';
    pre.textContent=dopText();mbdy.appendChild(pre);
@@ -854,13 +888,14 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(dopText()).then(ok,ok);}else{ok();}});
    mbdy.appendChild(cp);
    var ml=document.createElement('a');ml.className='dbtn';ml.style.marginLeft='8px';
-   ml.href='mailto:frantisekdron@gmail.com?subject='+encodeURIComponent('Fronta dopisů')+'&body='+encodeURIComponent(dopText());
-   ml.textContent='✉ Otevřít e-mail';mbdy.appendChild(ml);
+   ml.href=mailtoUrl('Fronta dopisů — Karel Dufek', dopText());
+   ml.textContent='✉ Otevřít e-mail znovu';mbdy.appendChild(ml);
    document.getElementById('mailmodal').classList.add('open');
    udalost('dopis','ODESLANA FRONTA: '+(state.__dopisy||[]).length+' dopisu');}
  var _dsend=document.getElementById('dopsend');
  if(_dsend)_dsend.addEventListener('click',function(){
-   if(!(state.__dopisy||[]).length){alert('Fronta dopisů je prázdná, Karle 🙂');return;}dopModal();});
+   if(!(state.__dopisy||[]).length){alert('Fronta dopisů je prázdná, Karle 🙂');return;}
+   otevriMail('Fronta dopisů — Karel Dufek', dopText()); dopModal();});
  var _dcopy=document.getElementById('dopcopy');
  if(_dcopy)_dcopy.addEventListener('click',function(){var b=this,t=dopText();
    function ok(){b.textContent='Zkopírováno ✓';setTimeout(function(){b.textContent='📋 Kopírovat seznam';},1600);}
@@ -871,6 +906,20 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
      e.setAttribute('data-on',on?'1':'0');e.classList.toggle('active',on);
      if(id==='f_mail')fMail=on;else fAdr=on;refresh();});});
 
+
+ // ——— ODESLÁNÍ E-MAILEM přes výchozího klienta (mobil / PC / tablet) ———
+ // mailto: otevře Mail, Gmail, Outlook — cokoli má člověk nastavené jako výchozí.
+ // Pozor na délku URL: klienti (a Windows) tělo nad ~1800 znaků ořezávají, proto se
+ // dlouhý seznam do mailu zkrátí a plné znění zůstane v modalu ke zkopírování.
+ var FRANTA='frantisekdron@gmail.com';
+ function mailtoUrl(predmet,telo){
+   var t=telo;
+   if(t.length>1800) t=t.slice(0,1750)+'\n\n… (seznam je delší — celý je v kokpitu pod tlačítkem Kopírovat)';
+   return 'mailto:'+FRANTA+'?subject='+encodeURIComponent(predmet)+'&body='+encodeURIComponent(t);
+ }
+ function otevriMail(predmet,telo){
+   try{ window.location.href=mailtoUrl(predmet,telo); }catch(e){}
+ }
  // ——— UPOZORNĚNÍ NA ZMĚNY (souhrn na ntfy) ———
  // Kokpit je statická stránka: sám v 10:00 nic neodešle, když ho nikdo nemá otevřený.
  // Proto se změny ukládají do „outboxu" a souhrn odejde při nejbližší příležitosti
