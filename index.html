@@ -434,10 +434,21 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
      .catch(function(){syncBadge('☁︎ Offline (uloženo lokálně)','#8792a4');});
    },800);
  }
+ // POJISTKA: okamžitý flush přes sendBeacon při skrytí/zavření záložky —
+ // aby se změna statusu/poznámky neztratila, když uživatel zavře dřív, než stihne debounced push.
+ function syncFlush(){ if(!SYNC_URL)return; try{
+   if(_syncT){clearTimeout(_syncT);_syncT=null;}
+   state.__rev=(state.__rev||0)+1; save0();
+   var body=JSON.stringify({token:SYNC_TOKEN,ns:NS,rev:state.__rev,state:state});
+   if(navigator.sendBeacon){navigator.sendBeacon(SYNC_URL,new Blob([body],{type:'text/plain;charset=utf-8'}));}
+   else{fetch(SYNC_URL,{method:'POST',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:body});}
+ }catch(e){} }
  function syncInit(){ if(!SYNC_URL||_syncOn)return; _syncOn=true; syncBadge('☁︎ Synchronizuji…','#918361');
    syncPull(function(){ syncPush(); }); // seed serveru lokálními daty + sloučení
    setInterval(function(){ if(!document.hidden)syncPull(function(){}); },20000);
    window.addEventListener('focus',function(){syncPull(function(){});});
+   window.addEventListener('pagehide',syncFlush);
+   document.addEventListener('visibilitychange',function(){if(document.hidden)syncFlush();});
  }
  // THEME
  (function(){var tb=document.getElementById('themebtn');
