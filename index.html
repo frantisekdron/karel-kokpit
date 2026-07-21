@@ -176,6 +176,15 @@ body.dark .dopisrow b{color:#9fb2c8}
 .vname{font-size:13.5px;font-weight:800;color:#211c15;line-height:1.2} .vmeta{font-size:11.5px;color:#6a7686;margin:3px 0 6px} .vmeta b{color:#918361}
 .vnote{font-size:11px;color:#5a4a74;background:#f7f2fb;border-radius:7px;padding:6px 9px;margin:6px 0;line-height:1.4}
 .vlink a{font-size:11.5px;color:#7a6a45;font-weight:700;text-decoration:none} .vlink a:hover{text-decoration:underline}
+.vact{margin-top:9px;display:flex;gap:7px;flex-wrap:wrap}
+.vbtn-naber{font:700 11.5px -apple-system,BlinkMacSystemFont,Arial;cursor:pointer;border:0;border-radius:8px;padding:7px 12px;background:#211c15;color:#fff;transition:background .15s,transform .05s}
+.vbtn-naber:active{transform:scale(.97)}
+.vbtn-naber:hover{background:#16386a}
+.vbtn-naber.on{background:#2e8b57}.vbtn-naber.on:hover{background:#6f6249}
+.vcard.inreq{border-left-color:#2e8b57!important;box-shadow:0 3px 12px rgba(46,139,87,.22)}
+body.dark .vbtn-naber{background:#918361}body.dark .vbtn-naber.on{background:#2e8b57}
+#vtoast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:80;background:#211c15;color:#fff;font:600 13px -apple-system,Arial;padding:11px 18px;border-radius:22px;box-shadow:0 6px 22px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .22s}
+#vtoast.show{opacity:.97}
 .verb{display:inline-block;font-size:8.5px;font-weight:800;background:#efe9dd;color:#7a6a45;border:1px solid #cdd6f2;border-radius:5px;padding:1px 6px;margin-left:4px;vertical-align:middle}
 .ab.lst{background:#fbf3e2;border-color:#ecd9a8;color:#8a6d24}
 .ab.web{background:#e9f2fb;border-color:#cdddf0;color:#7a6a45}
@@ -890,7 +899,25 @@ var STAGES=[{"k": "pripraveno", "l": "Připraveno", "c": "#8792a4"}, {"k": "odes
      h+='<div class="vmeta">'+escj([v.loc,v.since].filter(Boolean).join(' · '))+(v.price?(' · <b>'+escj(v.price)+'</b>'):'')+'</div>';
      if(v.note)h+='<div class="vnote">🎯 '+escj(v.note)+'</div>';
      if(v.url)h+='<div class="vlink"><a href="'+escj(v.url)+'" target="_blank" rel="noopener">Zobrazit inzerát ↗</a></div>';
-     d.innerHTML=h;return d;}
+     if(v.url){var _in=inNabery(v.url);if(_in)d.classList.add('inreq');
+       h+='<div class="vact"><button type="button" class="vbtn-naber'+(_in?' on':'')+'">'+(_in?'✓ V seznamu náběrů':'➕ Chci nábor')+'</button></div>';}
+     d.innerHTML=h;
+     var _nb=d.querySelector('.vbtn-naber');
+     if(_nb)_nb.addEventListener('click',function(e){e.stopPropagation();toggleNaber(v);});
+     return d;}
+   function inNabery(url){return (state.__requests||[]).some(function(x){return x&&x.src==='vytip'&&x.url===url;});}
+   function countNaber(){return (state.__requests||[]).length;}
+   function vtoast(msg){var t=document.getElementById('vtoast');
+     if(!t){t=document.createElement('div');t.id='vtoast';document.body.appendChild(t);}
+     t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show');},2300);}
+   function toggleNaber(v){ if(!v.url)return; var rs=state.__requests=state.__requests||[];
+     if(inNabery(v.url)){ state.__requests=rs.filter(function(x){return !(x&&x.src==='vytip'&&x.url===v.url);});
+       save(); vtoast('Odebráno ze seznamu náběrů'); }
+     else{ rs.push({id:'r'+Date.now()+Math.round(Math.random()*999),mode:'link',url:v.url,src:'vytip',
+         prio:'stredni',note:'z Vytipovaných: '+[v.name,v.loc,v.price].filter(Boolean).join(' · '),ts:Date.now()});
+       save(); vtoast('✓ Přidáno do „Nových požadavků“ ('+countNaber()+') — pošli je Františkovi jedním tlačítkem');
+       try{udalost('naber','vybráno z vytipovaných: '+(v.name||v.url));}catch(e){} }
+     try{renderReqs();}catch(e){} render(); }
    function render(){
      var cnt={__all:VYTIPOVANE.length,hotovo:0,ostatni:0,vyrazeno:0};
      VYTIPOVANE.forEach(function(v){cnt[statusOf(v)]++;});
