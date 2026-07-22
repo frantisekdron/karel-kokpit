@@ -341,6 +341,25 @@ body.dark .vizrow{background:#0f1e33;border-color:#2a3d59}
 .ctrllab{display:flex;align-items:center;gap:8px}
 .ctrldel{margin-left:auto;font-size:11px;font-weight:700;color:#6f6249;background:transparent;border:1px solid #f0c2c6;border-radius:7px;padding:3px 9px;cursor:pointer}.ctrldel:hover{background:#fdecee}body.dark .ctrldel{border-color:#5a2730;color:#ff8a94}body.dark .ctrldel:hover{background:#2a1418}
 .ctrlrestore{display:inline-block;margin:0 0 8px;font-size:11.5px;font-weight:700;color:#2e6fed;background:transparent;border:1px solid #bcd3f7;border-radius:7px;padding:5px 11px;cursor:pointer}body.dark .ctrlrestore{border-color:#284a72;color:#7db0ff}
+/* doručení vizualizací — dopis (PDF před/po zvlášť) vs online (interaktivní) */
+.baacts{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 10px}
+.baacts .dbtn{margin:0}
+.barule{font-size:11px;line-height:1.5;background:#f4f8ff;border:1px solid #d6e3f6;border-radius:8px;padding:8px 11px;margin:0 0 10px;color:#22344c}body.dark .barule{background:#0f2033;border-color:#25405e;color:#cfc5ad}
+.btpdf{background:#8a5a12;color:#fff}.btslider{background:#2e6fed;color:#fff}.bthost{background:#2e8b57;color:#fff}
+.baov{position:fixed;inset:0;background:rgba(6,12,22,.95);z-index:210;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px}
+.baov.open{display:flex}
+.batop{color:#e7eef7;font-size:13px;display:flex;align-items:center;gap:12px;max-width:1100px;width:100%;justify-content:center;position:relative}
+.batop .bax{position:absolute;right:0;top:-2px;background:none;border:0;color:#cfc5ad;font-size:26px;cursor:pointer;line-height:1}
+.bawrap{position:relative;max-width:min(94vw,1100px);line-height:0;user-select:none;touch-action:none;cursor:ew-resize;border-radius:8px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.bawrap img{display:block;max-width:100%;max-height:72vh;width:auto}
+.bawrap .bapred{position:absolute;top:0;left:0;height:100%;width:100%;object-fit:cover}
+.bahandle{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.bahandle::after{content:'⇄';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;color:#211c15;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.balbl{position:absolute;top:10px;font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:4px 9px;border-radius:20px;color:#fff;pointer-events:none}
+.balbl.p{left:10px;background:rgba(0,0,0,.6)}.balbl.a{right:10px;background:#2e8b57}
+.banav{display:flex;gap:10px;align-items:center;color:#e7eef7;font-size:12px}
+.banav button,.bahost{background:#1b3a5c;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.bahost{background:#2e8b57}
 .viztyp{font:inherit;font-size:12.5px;padding:6px 9px;border:1px solid #cdd7e5;border-radius:8px;margin-bottom:7px;background:#fff;color:#26221c}body.dark .viztyp{background:#0d1a2e;border-color:#2a3d59;color:#e6eef8}
 .vizprompt{width:100%;box-sizing:border-box;font:inherit;font-size:12px;line-height:1.5;padding:8px 10px;border:1px solid #cdd7e5;border-radius:9px;resize:vertical;background:#fff;color:#1a2b45}body.dark .vizprompt{background:#0d1a2e;border-color:#2a3d59;color:#e6eef8}
 .vizasp{display:flex;gap:6px;margin-top:7px}
@@ -494,6 +513,13 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
  var LB=document.getElementById('lightbox');
  function lbOpen(src){LB.querySelector('img').src=src;LB.classList.add('open');}
  LB.addEventListener('click',function(){LB.classList.remove('open');});
+ // brand + interaktivní před/po slider stav (globální)
+ var MAKLER='Karel Dufek',FIRMA='Reality Dufek &amp; Partneři';
+ var BAS={pid:'',title:'',pairs:[],i:0,drag:false,setX:null};
+ (function(){var o=document.createElement('div');o.id='baov';o.className='baov';document.body.appendChild(o);
+   o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});
+   window.addEventListener('mousemove',function(e){if(BAS.drag&&BAS.setX)BAS.setX(e.clientX);});
+   window.addEventListener('mouseup',function(){BAS.drag=false;});})();
  var LS='dufek_kokpit_v1';
  function load(){try{return JSON.parse(localStorage.getItem(LS))||{};}catch(e){return {};}}
  function save0(){try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
@@ -695,7 +721,9 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
    var mailOpen=document.getElementById('mailmodal').classList.contains('open');
    var detOpen=document.getElementById('detmodal').classList.contains('open');
    var lbOpen2=LB&&LB.classList.contains('open');
-   if(e.key==='Escape'){ if(lbOpen2){LB.classList.remove('open');e.preventDefault();return;}
+   var baOpen=document.getElementById('baov')&&document.getElementById('baov').classList.contains('open');
+   if(e.key==='Escape'){ if(baOpen){document.getElementById('baov').classList.remove('open');e.preventDefault();return;}
+     if(lbOpen2){LB.classList.remove('open');e.preventDefault();return;}
      if(mailOpen){document.getElementById('mailmodal').classList.remove('open');e.preventDefault();return;}
      if(detOpen){document.getElementById('detmodal').classList.remove('open');e.preventDefault();return;} return; }
    if(detOpen&&!mailOpen&&!lbOpen2&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){
@@ -755,6 +783,108 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
      parent.insertBefore(grp,h);parent.removeChild(h);
    });
  }
+ // ——— DORUČENÍ VIZUALIZACÍ: dopis = zapečené PDF (před/po ZVLÁŠŤ) · online = interaktivní ———
+ function slugjs(s){return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50)||'nemovitost';}
+ function baPairs(pid){var l=(CONTROL[pid]||[]);state.__vizhide=state.__vizhide||{};
+   return l.map(function(pp,ci){return {pp:pp,ci:ci};})
+     .filter(function(o){return o.pp.pred&&o.pp.po&&!state.__vizhide[pid+'||'+o.ci+'||'+(o.pp.label||'')];});}
+ // Zapečené PDF do DOPISU — před a po jako SAMOSTATNÉ obrázky (tisk → uložit jako PDF)
+ function letterPdf(pid,title){
+   var pairs=baPairs(pid);
+   if(!pairs.length){alert('Tato nemovitost zatím nemá hotové vizualizace (před/po).');return;}
+   var w=window.open('','_blank');
+   if(!w){alert('Povol prosím vyskakovací okna — otevře se tisková verze, kterou uložíš jako PDF.');return;}
+   var css='*{box-sizing:border-box}body{font:14px -apple-system,Arial,sans-serif;color:#26221c;margin:0;padding:0}'
+    +'.lhd{background:#211c15;color:#fff;padding:22px 30px}.lhd .brand{font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.85}'
+    +'.lhd h1{margin:6px 0 3px;font-size:22px}.lhd .sub{font-size:12.5px;opacity:.9}'
+    +'.pair{padding:22px 30px;page-break-inside:avoid;border-bottom:1px solid #e6ebf1}'
+    +'.pair h2{font-size:15px;margin:0 0 12px;color:#211c15}'
+    +'figure{margin:0 0 16px}figure img{width:100%;border-radius:8px;display:block}'
+    +'.tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.6px;padding:4px 10px;border-radius:6px;color:#fff;margin-bottom:7px}'
+    +'.tag.pred{background:#6a7686}.tag.po{background:#2e8b57}'
+    +'footer{padding:16px 30px;font-size:11px;color:#6a7686}'
+    +'@media print{.pair{border:none}}';
+   var body='';
+   pairs.forEach(function(o){
+     body+='<section class="pair"><h2>'+escj(o.pp.label||'Vizualizace')+'</h2>'
+       +'<figure><span class="tag pred">PŮVODNÍ STAV</span><img src="'+o.pp.pred+'"></figure>'
+       +'<figure><span class="tag po">PO PROFESIONÁLNÍ PREZENTACI</span><img src="'+o.pp.po+'"></figure></section>';});
+   w.document.write('<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>'+escj(title)+' — před a po</title><style>'+css+'</style></head><body>'
+     +'<div class="lhd"><div class="brand">'+escj(MAKLER)+(FIRMA?' · '+escj(FIRMA):'')+'</div><h1>'+escj(title)+'</h1>'
+     +'<div class="sub">Ukázka: jak může nemovitost působit po profesionální prezentaci</div></div>'
+     +body+'<footer>Vizualizace jsou ilustrační a ukazují potenciál prezentace nemovitosti.</footer>'
+     +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);};<\/scr'+'ipt></body></html>');
+   w.document.close();
+ }
+ // Interaktivní před/po slider (online náhled) + stažení self-contained HTML pro web makléře
+ function openBaSlider(pid,title){
+   var pairs=baPairs(pid);
+   if(!pairs.length){alert('Tato nemovitost zatím nemá hotové vizualizace (před/po).');return;}
+   BAS.pid=pid;BAS.title=title;BAS.pairs=pairs;BAS.i=0;baRender();document.getElementById('baov').classList.add('open');
+ }
+ function baRender(){
+   var ov=document.getElementById('baov'),o=BAS.pairs[BAS.i].pp;ov.innerHTML='';
+   var top=document.createElement('div');top.className='batop';
+   top.innerHTML='<span><b>'+escj(BAS.title)+'</b> — '+escj(o.label||'')+' · potáhni prostředkem</span>';
+   var x=document.createElement('button');x.className='bax';x.textContent='×';x.onclick=function(){ov.classList.remove('open');};top.appendChild(x);ov.appendChild(top);
+   var wrap=document.createElement('div');wrap.className='bawrap';
+   var po=document.createElement('img');po.src=o.po;wrap.appendChild(po);
+   var pred=document.createElement('img');pred.className='bapred';pred.src=o.pred;wrap.appendChild(pred);
+   var lp=document.createElement('span');lp.className='balbl p';lp.textContent='PŘED';wrap.appendChild(lp);
+   var la=document.createElement('span');la.className='balbl a';la.textContent='PO';wrap.appendChild(la);
+   var h=document.createElement('div');h.className='bahandle';wrap.appendChild(h);
+   BAS.setX=function(clientX){var r=wrap.getBoundingClientRect();var p=Math.max(0,Math.min(1,(clientX-r.left)/r.width));
+     pred.style.clipPath='inset(0 '+((1-p)*100).toFixed(1)+'% 0 0)';h.style.left=(p*100).toFixed(1)+'%';};
+   po.onload=function(){var r=wrap.getBoundingClientRect();BAS.setX(r.left+r.width*0.5);};
+   wrap.addEventListener('mousedown',function(e){BAS.drag=true;BAS.setX(e.clientX);e.preventDefault();});
+   wrap.addEventListener('touchstart',function(e){BAS.drag=true;BAS.setX(e.touches[0].clientX);},{passive:true});
+   wrap.addEventListener('touchmove',function(e){if(BAS.drag)BAS.setX(e.touches[0].clientX);},{passive:true});
+   wrap.addEventListener('touchend',function(){BAS.drag=false;});
+   ov.appendChild(wrap);
+   if(BAS.pairs.length>1){var nav=document.createElement('div');nav.className='banav';
+     var pv=document.createElement('button');pv.textContent='‹ předchozí';pv.onclick=function(){BAS.i=(BAS.i-1+BAS.pairs.length)%BAS.pairs.length;baRender();};
+     var ct=document.createElement('span');ct.textContent=(BAS.i+1)+' / '+BAS.pairs.length;
+     var nx=document.createElement('button');nx.textContent='další ›';nx.onclick=function(){BAS.i=(BAS.i+1)%BAS.pairs.length;baRender();};
+     nav.appendChild(pv);nav.appendChild(ct);nav.appendChild(nx);ov.appendChild(nav);}
+   var host=document.createElement('button');host.className='bahost';host.textContent='💾 Stáhnout jako web pro makléře (interaktivní .html)';
+   host.onclick=function(){hostSlider(BAS.pid,BAS.title);};ov.appendChild(host);
+ }
+ // Self-contained interaktivní před/po HTML — na hostování na web makléře / přílohu online
+ function hostSlider(pid,title){
+   var pairs=baPairs(pid);if(!pairs.length)return;
+   var data=pairs.map(function(o){return {l:o.pp.label||'',pred:o.pp.pred,po:o.pp.po};});
+   var tpl='<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
+    +'<title>'+escj(title)+' — před a po</title><style>*{box-sizing:border-box}body{margin:0;font:15px -apple-system,Arial,sans-serif;background:#0c1622;color:#eef4fb}'
+    +'header{padding:20px;text-align:center}header .b{font-size:11px;letter-spacing:1px;text-transform:uppercase;opacity:.7}header h1{margin:5px 0;font-size:20px}'
+    +'.w{position:relative;max-width:1000px;margin:10px auto;line-height:0;user-select:none;touch-action:none;cursor:ew-resize;border-radius:10px;overflow:hidden}'
+    +'.w img{display:block;width:100%}.w .pr{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}'
+    +'.h{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff}.h::after{content:"⇄";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;color:#211c15;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800}'
+    +'.l{position:absolute;top:10px;font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:4px 9px;border-radius:20px;color:#fff}.l.p{left:10px;background:rgba(0,0,0,.6)}.l.a{right:10px;background:#2e8b57}'
+    +'.cap{text-align:center;font-size:12px;opacity:.8;margin:6px 0 18px}nav{text-align:center;margin-bottom:20px}nav button{background:#1b3a5c;color:#fff;border:0;border-radius:8px;padding:8px 14px;margin:0 5px;font-weight:700;cursor:pointer}</style></head><body>'
+    +'<header><div class="b">'+escj(MAKLER)+(FIRMA?' · '+escj(FIRMA):'')+'</div><h1>'+escj(title)+'</h1><div style="font-size:12.5px;opacity:.8">Potáhni posuvník a porovnej původní stav s profesionální prezentací.</div></header>'
+    +'<div class="w" id="w"><img id="po"><img class="pr" id="pr"><span class="l p">PŘED</span><span class="l a">PO</span><div class="h" id="h"></div></div>'
+    +'<div class="cap" id="cap"></div><nav id="nav"></nav>'
+    +'<scr'+'ipt>var D='+JSON.stringify(data)+',i=0;var w=document.getElementById("w"),po=document.getElementById("po"),pr=document.getElementById("pr"),h=document.getElementById("h"),cap=document.getElementById("cap");'
+    +'function setX(x){var r=w.getBoundingClientRect();var p=Math.max(0,Math.min(1,(x-r.left)/r.width));pr.style.clipPath="inset(0 "+((1-p)*100)+"% 0 0)";h.style.left=(p*100)+"%";}'
+    +'function show(){var d=D[i];po.src=d.po;pr.src=d.pr||d.po;pr.src=d.pred;cap.textContent=d.l;po.onload=function(){var r=w.getBoundingClientRect();setX(r.left+r.width*0.5);};}'
+    +'var drag=false;w.addEventListener("mousedown",function(e){drag=true;setX(e.clientX);});window.addEventListener("mousemove",function(e){if(drag)setX(e.clientX);});window.addEventListener("mouseup",function(){drag=false;});'
+    +'w.addEventListener("touchstart",function(e){drag=true;setX(e.touches[0].clientX);},{passive:true});w.addEventListener("touchmove",function(e){if(drag)setX(e.touches[0].clientX);},{passive:true});'
+    +'if(D.length>1){document.getElementById("nav").innerHTML=\'<button onclick="i=(i-1+D.length)%D.length;show()">‹</button><span id=ct></span><button onclick="i=(i+1)%D.length;show()">›</button>\';}show();<\/scr'+'ipt></body></html>';
+   var blob=new Blob([tpl],{type:'text/html'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+   a.download=slugjs(title)+'_pred-po.html';document.body.appendChild(a);a.click();document.body.removeChild(a);
+   setTimeout(function(){URL.revokeObjectURL(a.href);},3000);
+   toast&&toast('Interaktivní web stažen — nahraj ho na web makléře nebo pošli jako přílohu.');
+ }
+ // řada tlačítek doručení (dopis PDF / online interaktivní) — čerpá z hotových před/po
+ function baButtons(pid,title){
+   if(!baPairs(pid).length)return null;
+   var wrap=document.createElement('div');wrap.className='baacts';
+   var b1=document.createElement('button');b1.className='dbtn btpdf';b1.textContent='📄 Před/po do dopisu (PDF)';
+   b1.title='Zapečené PDF s před a po zvlášť — na vytištění a přiložení do dopisu';b1.onclick=function(){letterPdf(pid,title);};
+   var b2=document.createElement('button');b2.className='dbtn btslider';b2.textContent='🔍 Interaktivní před/po (online)';
+   b2.title='Posuvník před/po — na web makléře nebo do e-mailu';b2.onclick=function(){openBaSlider(pid,title);};
+   wrap.appendChild(b1);wrap.appendChild(b2);return wrap;
+ }
  function openDetail(card){
    var pid=card.getAttribute('data-pid'),r=rec(pid),_paintBanner=null;
    document.getElementById('dettitle').textContent=card.querySelector('.nm').textContent;
@@ -790,6 +920,16 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
    if(card.getAttribute('data-hasmail')!=='1' || dopis.adresa){
      var ds=document.createElement('div');ds.className='dopissec';
      var dh=document.createElement('div');dh.className='dsec';dh.textContent='📮 Oslovení dopisem';ds.appendChild(dh);
+     // do dopisu VŽDY přiložit zapečené PDF s před/po zvlášť
+     if(baPairs(pid).length){
+       var lpb=document.createElement('button');lpb.className='dbtn btpdf';lpb.style.margin='2px 0 8px';
+       lpb.textContent='📄 Přiložit před/po do dopisu (zapečené PDF)';
+       lpb.addEventListener('click',function(){letterPdf(pid,card.querySelector('.nm').textContent);});
+       ds.appendChild(lpb);
+       var lph=document.createElement('div');lph.className='barule';lph.style.margin='0 0 8px';
+       lph.innerHTML='Otevře se tisková verze — ulož ji jako <b>PDF</b> a přilož k dopisu. Před a po jsou jako <b>samostatné obrázky</b> (papír neumí posuvník).';
+       ds.appendChild(lph);
+     }
      var STAVY={'adresa-znama':'Adresa známa — dopis lze připravit','pripraven':'Dopis připraven k odeslání',
                 'odeslano':'Dopis odeslán poštou','chyba':'Odeslání selhalo — viz log'};
      function radek(l,v){if(!v)return;var r=document.createElement('div');r.className='dopisrow';
@@ -945,6 +1085,12 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
      var cs=document.createElement('div');cs.className='ctrlsec';
      var ch=document.createElement('div');ch.className='dsec';ch.textContent='🔍 Kontrolní fotky — hotové vizualizace ('+(ctrl.length-hiddenCnt)+')';cs.appendChild(ch);
      var chi=document.createElement('div');chi.className='ctrlhint';chi.textContent='Ke každé fotce přidej poznámku, nebo ji tlačítkem 🗑 smaž (nahradit můžeš níže výběrem z inzerátu). Klikni na fotku pro zvětšení.';cs.appendChild(chi);
+     // DORUČENÍ: dopis = zapečené PDF (před/po zvlášť) · online = interaktivní
+     var _bt=card.querySelector('.nm').textContent;
+     var _bb=baButtons(pid,_bt);if(_bb)cs.appendChild(_bb);
+     var brl=document.createElement('div');brl.className='barule';
+     brl.innerHTML='📮 <b>Do dopisu</b> pošli <b>zapečené PDF</b> (před a po jako samostatné obrázky) — tlačítko „Před/po do dopisu". &nbsp; 🌐 <b>Online</b> (e-mail / web makléře) použij <b>interaktivní</b> posuvník — tlačítko „Interaktivní před/po".';
+     cs.appendChild(brl);
      if(hiddenCnt){var rb=document.createElement('button');rb.className='ctrlrestore';rb.textContent='↩ Obnovit skryté ('+hiddenCnt+')';
        rb.addEventListener('click',function(){ctrl.forEach(function(pp,ci){delete state.__vizhide[hideKey(ci,pp)];});save();openDetail(card);});cs.appendChild(rb);}
      state.__cnotes=state.__cnotes||{};
