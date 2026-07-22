@@ -538,7 +538,7 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
    if(!sv||typeof sv!=='object')return false; var changed=false,k;
    for(k in sv){ if(k==='__rev')continue;
      if(k==='__requests'||k==='__dopisy'||k==='__vizfronta'){var before=JSON.stringify(state[k]||[]);state[k]=unionById(state[k]||[],sv[k]||[]);if(JSON.stringify(state[k])!==before)changed=true;}
-     else if(k==='__adresy'||k==='__vizhide'){state[k]=state[k]||{};for(var a in sv[k]){if(!(a in state[k])){state[k][a]=sv[k][a];changed=true;}}}
+     else if(k==='__adresy'||k==='__vizhide'||k==='__webreq'){state[k]=state[k]||{};for(var a in sv[k]){if(!(a in state[k])){state[k][a]=sv[k][a];changed=true;}}}
      else if(k.indexOf('__')===0){if(JSON.stringify(state[k])!==JSON.stringify(sv[k])){state[k]=sv[k];changed=true;}}
      else{var s=sv[k],l=state[k];if(!l||(s&&Number(s.ts||0)>Number((l&&l.ts)||0))){state[k]=s;changed=true;}}}
    return changed;
