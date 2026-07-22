@@ -344,6 +344,7 @@ body.dark .vizrow{background:#0f1e33;border-color:#2a3d59}
 /* doručení vizualizací — dopis (PDF před/po zvlášť) vs online (interaktivní) */
 .baacts{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 10px}
 .baacts .dbtn{margin:0}
+.delivsec{margin-top:14px;padding-top:4px}
 .barule{font-size:11px;line-height:1.5;background:#f4f8ff;border:1px solid #d6e3f6;border-radius:8px;padding:8px 11px;margin:0 0 10px;color:#22344c}body.dark .barule{background:#0f2033;border-color:#25405e;color:#cfc5ad}
 .btpdf{background:#8a5a12;color:#fff}.btslider{background:#2e6fed;color:#fff}.bthost{background:#2e8b57;color:#fff}
 .baov{position:fixed;inset:0;background:rgba(6,12,22,.95);z-index:210;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px}
@@ -788,8 +789,12 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
  function baPairs(pid){var l=(CONTROL[pid]||[]);state.__vizhide=state.__vizhide||{};
    return l.map(function(pp,ci){return {pp:pp,ci:ci};})
      .filter(function(o){return o.pp.pred&&o.pp.po&&!state.__vizhide[pid+'||'+o.ci+'||'+(o.pp.label||'')];});}
- // Zapečené PDF do DOPISU — před a po jako SAMOSTATNÉ obrázky (tisk → uložit jako PDF)
+ // titulek do PDF/webu bez osobních údajů — vyhodí č.p., PSČ, ulici s číslem (GDPR)
+ function safeTitle(t){return String(t||'').replace(/č\.?\s?p\.?\s*\d+[a-z]?/gi,'').replace(/\b\d{3}\s?\d{2}\b/g,'')
+   .replace(/,?\s*[A-ZÁ-Ž][\wá-ž]+\s+\d+[a-z]?(\/\d+)?\b/g,'').replace(/\s{2,}/g,' ').replace(/[\s,–—-]+$/,'').trim()||'Nemovitost';}
+ // Zapečené PDF do DOPISU — před a po jako SAMOSTATNÉ obrázky (tisk → uložit jako PDF), BEZ jména/adresy vlastníka
  function letterPdf(pid,title){
+   title=safeTitle(title);
    var pairs=baPairs(pid);
    if(!pairs.length){alert('Tato nemovitost zatím nemá hotové vizualizace (před/po).');return;}
    var w=window.open('','_blank');
@@ -818,6 +823,7 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
  }
  // Interaktivní před/po slider (online náhled) + stažení self-contained HTML pro web makléře
  function openBaSlider(pid,title){
+   title=safeTitle(title);
    var pairs=baPairs(pid);
    if(!pairs.length){alert('Tato nemovitost zatím nemá hotové vizualizace (před/po).');return;}
    BAS.pid=pid;BAS.title=title;BAS.pairs=pairs;BAS.i=0;baRender();document.getElementById('baov').classList.add('open');
@@ -851,6 +857,7 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
  }
  // Self-contained interaktivní před/po HTML — na hostování na web makléře / přílohu online
  function hostSlider(pid,title){
+   title=safeTitle(title);
    var pairs=baPairs(pid);if(!pairs.length)return;
    var data=pairs.map(function(o){return {l:o.pp.label||'',pred:o.pp.pred,po:o.pp.po};});
    var tpl='<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
@@ -874,16 +881,6 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
    a.download=slugjs(title)+'_pred-po.html';document.body.appendChild(a);a.click();document.body.removeChild(a);
    setTimeout(function(){URL.revokeObjectURL(a.href);},3000);
    toast&&toast('Interaktivní web stažen — nahraj ho na web makléře nebo pošli jako přílohu.');
- }
- // řada tlačítek doručení (dopis PDF / online interaktivní) — čerpá z hotových před/po
- function baButtons(pid,title){
-   if(!baPairs(pid).length)return null;
-   var wrap=document.createElement('div');wrap.className='baacts';
-   var b1=document.createElement('button');b1.className='dbtn btpdf';b1.textContent='📄 Před/po do dopisu (PDF)';
-   b1.title='Zapečené PDF s před a po zvlášť — na vytištění a přiložení do dopisu';b1.onclick=function(){letterPdf(pid,title);};
-   var b2=document.createElement('button');b2.className='dbtn btslider';b2.textContent='🔍 Interaktivní před/po (online)';
-   b2.title='Posuvník před/po — na web makléře nebo do e-mailu';b2.onclick=function(){openBaSlider(pid,title);};
-   wrap.appendChild(b1);wrap.appendChild(b2);return wrap;
  }
  function openDetail(card){
    var pid=card.getAttribute('data-pid'),r=rec(pid),_paintBanner=null;
@@ -916,20 +913,12 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
    var dopis={},katastr={};
    try{dopis=JSON.parse(card.getAttribute('data-dopis')||'{}');}catch(e){}
    try{katastr=JSON.parse(card.getAttribute('data-katastr')||'{}');}catch(e){}
-   // dopis má smysl jen tam, kde nemáme e-mail (data-hasmail=0)
-   if(card.getAttribute('data-hasmail')!=='1' || dopis.adresa){
+   // DOPIS má smysl JEN u samostatné budovy (dům/rekreační) bez e-mailu — byt/pozemek se posílá ONLINE
+   var _dtl=card.getAttribute('data-typ')||'';
+   var _letterCapable=(_dtl==='dum'||_dtl==='rekreacni');
+   if(_letterCapable && card.getAttribute('data-hasmail')!=='1'){
      var ds=document.createElement('div');ds.className='dopissec';
      var dh=document.createElement('div');dh.className='dsec';dh.textContent='📮 Oslovení dopisem';ds.appendChild(dh);
-     // do dopisu VŽDY přiložit zapečené PDF s před/po zvlášť
-     if(baPairs(pid).length){
-       var lpb=document.createElement('button');lpb.className='dbtn btpdf';lpb.style.margin='2px 0 8px';
-       lpb.textContent='📄 Přiložit před/po do dopisu (zapečené PDF)';
-       lpb.addEventListener('click',function(){letterPdf(pid,card.querySelector('.nm').textContent);});
-       ds.appendChild(lpb);
-       var lph=document.createElement('div');lph.className='barule';lph.style.margin='0 0 8px';
-       lph.innerHTML='Otevře se tisková verze — ulož ji jako <b>PDF</b> a přilož k dopisu. Před a po jsou jako <b>samostatné obrázky</b> (papír neumí posuvník).';
-       ds.appendChild(lph);
-     }
      var STAVY={'adresa-znama':'Adresa známa — dopis lze připravit','pripraven':'Dopis připraven k odeslání',
                 'odeslano':'Dopis odeslán poštou','chyba':'Odeslání selhalo — viz log'};
      function radek(l,v){if(!v)return;var r=document.createElement('div');r.className='dopisrow';
@@ -1085,12 +1074,6 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
      var cs=document.createElement('div');cs.className='ctrlsec';
      var ch=document.createElement('div');ch.className='dsec';ch.textContent='🔍 Kontrolní fotky — hotové vizualizace ('+(ctrl.length-hiddenCnt)+')';cs.appendChild(ch);
      var chi=document.createElement('div');chi.className='ctrlhint';chi.textContent='Ke každé fotce přidej poznámku, nebo ji tlačítkem 🗑 smaž (nahradit můžeš níže výběrem z inzerátu). Klikni na fotku pro zvětšení.';cs.appendChild(chi);
-     // DORUČENÍ: dopis = zapečené PDF (před/po zvlášť) · online = interaktivní
-     var _bt=card.querySelector('.nm').textContent;
-     var _bb=baButtons(pid,_bt);if(_bb)cs.appendChild(_bb);
-     var brl=document.createElement('div');brl.className='barule';
-     brl.innerHTML='📮 <b>Do dopisu</b> pošli <b>zapečené PDF</b> (před a po jako samostatné obrázky) — tlačítko „Před/po do dopisu". &nbsp; 🌐 <b>Online</b> (e-mail / web makléře) použij <b>interaktivní</b> posuvník — tlačítko „Interaktivní před/po".';
-     cs.appendChild(brl);
      if(hiddenCnt){var rb=document.createElement('button');rb.className='ctrlrestore';rb.textContent='↩ Obnovit skryté ('+hiddenCnt+')';
        rb.addEventListener('click',function(){ctrl.forEach(function(pp,ci){delete state.__vizhide[hideKey(ci,pp)];});save();openDetail(card);});cs.appendChild(rb);}
      state.__cnotes=state.__cnotes||{};
@@ -1133,6 +1116,45 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
      makeCollapsible(cs);                     // Kontrolní fotky → zasouvací, ale VŽDY rozbalené (Franta 22.7.)
      cs.querySelectorAll('.collgrp').forEach(function(gg){gg.classList.add('open');});
      body.appendChild(cs);
+     // ——— JAK POSLAT VIZUALIZACE: rozhoduje TYP (dům vs byt/pozemek) + ZNALOST ADRESY ———
+     if(baPairs(pid).length){
+       var _dt=card.getAttribute('data-typ')||'';var _title=card.querySelector('.nm').textContent;
+       var _dop2={};try{_dop2=JSON.parse(card.getAttribute('data-dopis')||'{}');}catch(e){}
+       var _adr=((state.__adresy||{})[pid]||'')||_dop2.adresa||'';
+       var _adrKnown=/\d/.test(_adr)&&/\b\d{3}\s?\d{2}\b/.test(_adr);
+       var _hasEmail=(card.getAttribute('data-hasmail')==='1');
+       var _dumTyp=(_dt==='dum'||_dt==='rekreacni');   // samostatná budova s vlastní adresou
+       var _letter=_dumTyp&&_adrKnown&&!_hasEmail;      // DOPIS jen dům se známou adresou a bez e-mailu
+       var dv=document.createElement('div');dv.className='delivsec';
+       var dvh=document.createElement('div');dvh.className='dsec';dvh.textContent='📤 Jak poslat vizualizace';dv.appendChild(dvh);
+       if(_letter){
+         var lb=document.createElement('button');lb.className='dbtn btpdf';lb.textContent='📄 Před/po do dopisu (PDF)';
+         lb.title='Zapečené PDF s před a po jako samostatné obrázky — na vytištění a přiložení do dopisu';
+         lb.onclick=function(){letterPdf(pid,_title);};dv.appendChild(lb);
+         var ln=document.createElement('div');ln.className='barule';
+         ln.innerHTML='🏠 <b>Rodinný dům se známou adresou → DOPIS.</b> Ulož PDF (před a po jako <b>samostatné obrázky</b>) a přilož ho k dopisu. Adresu doplň níže v „Oslovení dopisem".';
+         dv.appendChild(ln);
+       } else {
+         var reason=(_dt==='byt')?'Byt — dopis „Vážený majiteli" by ke správnému vlastníkovi nedošel'
+           :(_dt==='pozemek')?'Pozemek — na parcele není schránka, dopis nemá kam přijít'
+           :(_hasEmail)?'Máme e-mail — rychlejší je poslat online'
+           :(!_adrKnown)?'Neznáme doručovací adresu':'Tenhle typ posíláme online';
+         var sb=document.createElement('button');sb.className='dbtn btslider';sb.textContent='🔍 Ukázat interaktivní před/po';
+         sb.onclick=function(){openBaSlider(pid,_title);};dv.appendChild(sb);
+         state.__webreq=state.__webreq||{};var reqd=!!state.__webreq[pid];
+         var wb=document.createElement('button');wb.className='dbtn '+(reqd?'':'bthost');wb.style.marginLeft='8px';
+         wb.textContent=reqd?'✓ František připraví web stránku':'🌐 Chci web stránku (poprosit Františka)';
+         wb.onclick=function(){
+           if(state.__webreq[pid]){delete state.__webreq[pid];}
+           else{state.__webreq[pid]={name:_title,typ:_dt,ts:Date.now()};udalost('web',_title+': žádost o interaktivní web stránku (na web makléře)');}
+           save();openDetail(card);};
+         dv.appendChild(wb);
+         var on=document.createElement('div');on.className='barule';
+         on.innerHTML='🌐 <b>'+escj(reason)+' → ONLINE.</b> Pošli <b>e-mailem</b>; interaktivní stránku před/po (posuvník) vyrobí <b>František</b> a nahraje ji na tvůj web.';
+         dv.appendChild(on);
+       }
+       body.appendChild(dv);
+     }
    }
    // ——— VIZUALIZACE NA MÍRU: výběr fotek z inzerátu → prompt → cloud fronta ———
    var gal=GALLERY[pid];
