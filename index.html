@@ -334,6 +334,9 @@ body.dark .vizrow{background:#0f1e33;border-color:#2a3d59}
 .vizrowhd{font-size:12.5px;font-weight:800;color:#26221c;margin-bottom:7px}body.dark .vizrowhd{color:#e8e2d6}
 .scnlab{font-size:10px;letter-spacing:.6px;text-transform:uppercase;font-weight:700;color:#6b7c93;margin:4px 0 3px}body.dark .scnlab{color:#8ea3bd}
 .scncz{font-size:12px;line-height:1.5;background:#eef6ff;border:1px solid #cfe2f6;border-radius:8px;padding:8px 11px;margin:2px 0 6px;color:#123}body.dark .scncz{background:#0f2237;border-color:#26415f;color:#dceaf8}
+.ctrllab{display:flex;align-items:center;gap:8px}
+.ctrldel{margin-left:auto;font-size:11px;font-weight:700;color:#6f6249;background:transparent;border:1px solid #f0c2c6;border-radius:7px;padding:3px 9px;cursor:pointer}.ctrldel:hover{background:#fdecee}body.dark .ctrldel{border-color:#5a2730;color:#ff8a94}body.dark .ctrldel:hover{background:#2a1418}
+.ctrlrestore{display:inline-block;margin:0 0 8px;font-size:11.5px;font-weight:700;color:#2e6fed;background:transparent;border:1px solid #bcd3f7;border-radius:7px;padding:5px 11px;cursor:pointer}body.dark .ctrlrestore{border-color:#284a72;color:#7db0ff}
 .viztyp{font:inherit;font-size:12.5px;padding:6px 9px;border:1px solid #cdd7e5;border-radius:8px;margin-bottom:7px;background:#fff;color:#26221c}body.dark .viztyp{background:#0d1a2e;border-color:#2a3d59;color:#e6eef8}
 .vizprompt{width:100%;box-sizing:border-box;font:inherit;font-size:12px;line-height:1.5;padding:8px 10px;border:1px solid #cdd7e5;border-radius:9px;resize:vertical;background:#fff;color:#1a2b45}body.dark .vizprompt{background:#0d1a2e;border-color:#2a3d59;color:#e6eef8}
 .vizasp{display:flex;gap:6px;margin-top:7px}
@@ -503,7 +506,7 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
    if(!sv||typeof sv!=='object')return false; var changed=false,k;
    for(k in sv){ if(k==='__rev')continue;
      if(k==='__requests'||k==='__dopisy'||k==='__vizfronta'){var before=JSON.stringify(state[k]||[]);state[k]=unionById(state[k]||[],sv[k]||[]);if(JSON.stringify(state[k])!==before)changed=true;}
-     else if(k==='__adresy'){state.__adresy=state.__adresy||{};for(var a in sv[k]){if(!(a in state.__adresy)){state.__adresy[a]=sv[k][a];changed=true;}}}
+     else if(k==='__adresy'||k==='__vizhide'){state[k]=state[k]||{};for(var a in sv[k]){if(!(a in state[k])){state[k][a]=sv[k][a];changed=true;}}}
      else if(k.indexOf('__')===0){if(JSON.stringify(state[k])!==JSON.stringify(sv[k])){state[k]=sv[k];changed=true;}}
      else{var s=sv[k],l=state[k];if(!l||(s&&Number(s.ts||0)>Number((l&&l.ts)||0))){state[k]=s;changed=true;}}}
    return changed;
@@ -910,14 +913,24 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
    _paintBanner();body.insertBefore(stBanner,body.firstChild);
    var ctrl=CONTROL[pid];
    if(ctrl&&ctrl.length){
+     state.__vizhide=state.__vizhide||{};
+     var hideKey=function(ci,pp){return pid+'||'+ci+'||'+(pp.label||'');};
+     var hiddenCnt=ctrl.filter(function(pp,ci){return state.__vizhide[hideKey(ci,pp)];}).length;
      var cs=document.createElement('div');cs.className='ctrlsec';
-     var ch=document.createElement('div');ch.className='dsec';ch.textContent='🔍 Kontrolní fotky — neoříznuté před/po';cs.appendChild(ch);
-     var chi=document.createElement('div');chi.className='ctrlhint';chi.textContent='Ke každé fotce přidej poznámku a pošli je Františkovi. Klikni na fotku pro zvětšení.';cs.appendChild(chi);
+     var ch=document.createElement('div');ch.className='dsec';ch.textContent='🔍 Kontrolní fotky — hotové vizualizace ('+(ctrl.length-hiddenCnt)+')';cs.appendChild(ch);
+     var chi=document.createElement('div');chi.className='ctrlhint';chi.textContent='Ke každé fotce přidej poznámku, nebo ji tlačítkem 🗑 smaž (nahradit můžeš níže výběrem z inzerátu). Klikni na fotku pro zvětšení.';cs.appendChild(chi);
+     if(hiddenCnt){var rb=document.createElement('button');rb.className='ctrlrestore';rb.textContent='↩ Obnovit skryté ('+hiddenCnt+')';
+       rb.addEventListener('click',function(){ctrl.forEach(function(pp,ci){delete state.__vizhide[hideKey(ci,pp)];});save();openDetail(card);});cs.appendChild(rb);}
      state.__cnotes=state.__cnotes||{};
      var pname=card.querySelector('.nm').textContent;
      ctrl.forEach(function(pp,ci){
+       if(state.__vizhide[hideKey(ci,pp)])return;   // skrytá/smazaná vizualizace
        var row=document.createElement('div');row.className='ctrlrow';
-       var lab=document.createElement('div');lab.className='ctrllab';lab.textContent=pp.label;row.appendChild(lab);
+       var lab=document.createElement('div');lab.className='ctrllab';lab.textContent=pp.label;
+       var del=document.createElement('button');del.className='ctrldel';del.textContent='🗑 smazat';del.title='Skrýt tuto vizualizaci (jde obnovit)';
+       del.addEventListener('click',function(){if(!confirm('Smazat vizualizaci „'+pp.label+'"? (půjde obnovit tlačítkem nahoře)'))return;
+         state.__vizhide[hideKey(ci,pp)]=Date.now();save();udalost('viz',pname+': smazána vizualizace '+pp.label);openDetail(card);});
+       lab.appendChild(del);row.appendChild(lab);
        var duo=document.createElement('div');duo.className='ctrlduo';
        var _imgs=pp.single?[['',pp.po,'po']]:[['PŘED',pp.pred,'pred'],['PO',pp.po,'po']];
        if(pp.single)duo.style.gridTemplateColumns='1fr';
@@ -1005,8 +1018,19 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
        row.appendChild(sel);
        // český popis „co se stane"
        var cz=document.createElement('div');cz.className='scncz';cz.innerHTML='🪄 <b>Co udělám:</b> '+sc.cz;row.appendChild(cz);
-       // KROK 2 — přesný prompt (anglicky, pro model), editovatelný
-       var lab2=document.createElement('div');lab2.className='scnlab';lab2.textContent='2) Přesný pokyn pro AI (můžeš upravit)';row.appendChild(lab2);
+       // KROK 2 — kam nová vizualizace půjde (nová pozice / nahradit stávající)
+       if(!vdp.target)vdp.target={};
+       var existing=(CONTROL[pid]||[]);
+       var lab3=document.createElement('div');lab3.className='scnlab';lab3.textContent='2) Kam to půjde?';row.appendChild(lab3);
+       var psel=document.createElement('select');psel.className='viztyp';
+       var onew=document.createElement('option');onew.value='new';onew.textContent='➕ Nová vizualizace (přidat na konec)';psel.appendChild(onew);
+       existing.forEach(function(pp,ci){var op=document.createElement('option');op.value='rep:'+ci;op.textContent='♻ Nahradit: '+pp.label;if(vdp.target[idx]==='rep:'+ci)op.selected=true;psel.appendChild(op);});
+       if(!vdp.target[idx])vdp.target[idx]='new';
+       psel.value=vdp.target[idx];
+       psel.addEventListener('change',function(){vdp.target[idx]=psel.value;saveVD();});
+       row.appendChild(psel);
+       // KROK 3 — přesný prompt (anglicky, pro model), editovatelný
+       var lab2=document.createElement('div');lab2.className='scnlab';lab2.textContent='3) Přesný pokyn pro AI (můžeš upravit)';row.appendChild(lab2);
        var ta=document.createElement('textarea');ta.className='vizprompt';ta.rows=5;ta.value=(vdp.prompt[idx]!==undefined?vdp.prompt[idx]:buildVizPrompt(ph,idx));row.appendChild(ta);
        var aw=document.createElement('div');aw.className='vizasp';var fi=document.createElement('span');fi.className='aspchip on';fi.textContent='🖼 Formát: dle originálu'+(ph.w&&ph.h?' ('+ph.w+'×'+ph.h+')':'');fi.title='Výsledná vizualizace má VŽDY stejný poměr stran jako originální fotka z inzerátu.';aw.appendChild(fi);row.appendChild(aw);
        ta.addEventListener('input',function(){vdp.prompt[idx]=ta.value;saveVD();});
@@ -1019,10 +1043,12 @@ var STAGES=[{"k": "zkontrolovat", "l": "Zkontrolovat vizu", "c": "#e0a020"}, {"k
          if(q.some(function(j){return j.pid===pid&&j.photo_idx===idx&&j.status!=='error'&&j.status!=='archived';}))return;
          var scv=scnOf(idx,ph);var sc=sceneById(scv)||{};var typ=sc.typ||vdp.typ[idx]||ph.typ;
          var prompt=(vdp.prompt[idx]!==undefined?vdp.prompt[idx]:buildVizPrompt(ph,idx));var asp=aspFor(ph,typ);
-         q.push({id:'vf_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),ns:NS,pid:pid,name:vpname,photo_idx:idx,src_url:(ph.local||ph.url),src_w:ph.w||0,src_h:ph.h||0,format:'orig',typ:typ,scene:scv,scene_label:sc.l||'',scene_cz:sc.cz||'',garden:ph.garden,aspect:asp,label:ph.label,prompt:prompt,prompt_base:buildVizPrompt(ph,idx),status:'queued',ts:Date.now(),by:'kolega',attempts:0,result:{}});added++;});
+         var tgt=(vdp.target&&vdp.target[idx])||'new';var repci=(tgt.indexOf('rep:')===0)?parseInt(tgt.slice(4),10):-1;
+         var replab=(repci>=0&&(CONTROL[pid]||[])[repci])?(CONTROL[pid][repci].label||''):'';
+         q.push({id:'vf_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),ns:NS,pid:pid,name:vpname,photo_idx:idx,src_url:(ph.local||ph.url),src_w:ph.w||0,src_h:ph.h||0,format:'orig',typ:typ,scene:scv,scene_label:sc.l||'',scene_cz:sc.cz||'',garden:ph.garden,aspect:asp,label:(sc.l||ph.label),target:tgt,replace_ci:repci,replace_label:replab,prompt:prompt,prompt_base:buildVizPrompt(ph,idx),status:'queued',ts:Date.now(),by:'kolega',attempts:0,result:{}});added++;});
        if(!added){alert('Vybrané fotky už jsou ve frontě.');return;}
        save();udalost('viz',vpname+': '+added+' fotek do fronty na vizualizaci');
-       vdp.sel=[];vdp.prompt={};vdp.typ={};vdp.aspect={};vdp.scene={};saveVD();renderEditor();upcnt();renderVizStatus();}
+       vdp.sel=[];vdp.prompt={};vdp.typ={};vdp.aspect={};vdp.scene={};vdp.target={};saveVD();renderEditor();upcnt();renderVizStatus();}
      function renderVizStatus(){statusWrap.innerHTML='';var q=(state.__vizfronta||[]).filter(function(j){return j.pid===pid;});if(!q.length)return;
        var h=document.createElement('div');h.className='vizstatushd';h.textContent='Fronta vizualizací ('+q.length+')';statusWrap.appendChild(h);
        var SL={queued:['⏳ Ve frontě','#8792a4'],processing:['⚙️ Zpracovává se','#918361'],done:['✅ Hotovo','#2e8b57'],error:['⚠️ Chyba','#6f6249'],archived:['✅ V kartě','#2e8b57']};
